@@ -1,0 +1,13 @@
+names:
+- ball
+- player
+nc: 2
+roboflow:
+  license: CC BY 4.0
+  project: tennis-match-0fu9u
+  url: https://universe.roboflow.com/customdataset-nkq2a/tennis-match-0fu9u/dataset/1
+  version: 1
+  workspace: customdataset-nkq2a
+test: ../test/images
+train: Tennis-match-1/train/images
+val: Tennis-match-1/valid/images
