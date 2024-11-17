@@ -7,7 +7,7 @@ import sys
 import numpy as np
 import os
 
-pathlib.PosixPath = pathlib.WindowsPath
+# pathlib.PosixPath = pathlib.WindowsPath
 
 # Import YOLOv5 model and utilities
 from models.common import DetectMultiBackend
