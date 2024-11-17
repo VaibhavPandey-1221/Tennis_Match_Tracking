@@ -7,7 +7,7 @@ import os
 import time
 
 # Define model path
-model_path = 'best.pt'  # Replace with your actual .pt file path
+model_path = 'models/best.pt'  # Replace with your actual .pt file path
 
 # Load YOLOv5 model
 try:
