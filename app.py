@@ -3,40 +3,19 @@ import torch
 import cv2
 import tempfile
 import numpy as np
-import pathlib
 import os
 import time
 
-# Ensure compatibility with Windows paths if needed (you can remove this if running on Linux)
-#pathlib.PosixPath = pathlib.WindowsPath
-
-# Define local paths for the model and repository (update for your environment)
-#repo_path = 'C://Users//lahya//OneDrive//Desktop//hello world app'  # Update to your repo path
+# Define model path
 model_path = 'best.pt'  # Replace with your actual .pt file path
 
-# Debugging: Check if paths exist
-#if not os.path.exists(repo_path):
-  #  raise FileNotFoundError(f"Repository path {repo_path} does not exist.")
-#if not os.path.exists(model_path):
-# raise FileNotFoundError(f"Model path {model_path} does not exist.")
-
-# Check if 'hubconf.py' exists in the repo
-#hubconf_path = os.path.join('.', 'hubconf.py')
-#if not os.path.exists(hubconf_path):
- #   raise FileNotFoundError(f"hubconf.py not found in {repo_path}. Make sure your repository is structured correctly.")
-
-# Add repo_path to sys.path to make sure Python can find your repository's hubconf.py
-#import sys
-#sys.path.append(repo_path)
-
-# Attempt to load the custom YOLOv5 model
+# Load YOLOv5 model
 try:
     model = torch.hub.load('.', 'custom', path=model_path, source='local')
     st.success("Model loaded successfully!")
 except Exception as e:
     st.error(f"Error loading model: {e}")
-    raise e  # Reraise the exception so we can catch it in the logs
-
+    raise e
 # Main App UI
 st.title('🎾 Tennis Tracking App')
 st.write("Upload a tennis video to detect and track players in real-time.")
@@ -77,16 +56,16 @@ if uploaded_video is not None:
         if not ret:
             break
 
-        # Run detection model (mixed precision if CUDA is available)
+        # Run detection model
         if torch.cuda.is_available():
             with torch.amp.autocast(device_type='cuda'):
                 results = model(frame)
         else:
             results = model(frame)
 
-        frame = np.squeeze(results.render())  # Draw detection boxes on the frame
+        # Access detection results
+        detections = results.xyxy[0].cpu().numpy()  # Assuming detections format [x1, y1, x2, y2, conf, class]
 
-        
         # Draw bounding boxes with colors based on class
         for detection in detections:
             x1, y1, x2, y2, conf, cls = detection
@@ -103,9 +82,11 @@ if uploaded_video is not None:
             label = f"{int(cls)}: {conf:.2f}"  # Replace with actual label text if available
             cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness=1)
 
-
         # Convert BGR to RGB for display
         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+        # Write frame to output video file
+        out.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
 
         # Display the frame in Streamlit
         stframe.image(frame, channels='RGB', use_container_width=True)
