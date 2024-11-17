@@ -122,7 +122,7 @@ if uploaded_video:
             out.write(frame_resized)
 
             # Update progress
-            progress_percentage = int((i + 1) / total_frames * 100)
+            progress_percentage = int((i + 4) / total_frames * 100)
             progress_bar.progress(progress_percentage)
 
             # Display the processed frame in RGB color space for Streamlit
