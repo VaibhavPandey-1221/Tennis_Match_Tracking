@@ -57,14 +57,6 @@ st.markdown("""
 
 st.write("Upload a video to detect players and balls using the YOLOv5 model.")
 
-# Title with modified color
-st.markdown("""
-    <h1 style='color: lightblue;'>
-        🎾🎾Tennis Match Player and Ball Detection Application using Yolov5
-    </h1>
-""", unsafe_allow_html=True)
-
-
 # File uploader for video input
 uploaded_video = st.file_uploader("Upload a video", type=["mp4", "mov", "avi", "mkv"])
 
@@ -89,51 +81,57 @@ if uploaded_video:
         # Progress bar
         progress_bar = st.progress(0)
 
-        # Process each frame
-        for i in range(total_frames):
-            ret, frame = cap.read()
-            if not ret:
-                break
+        # Process video frames
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
 
-            # Resize frame to 640x640 for YOLO input and output
-            frame_resized = cv2.resize(frame, (img_size, img_size))
+        # Run detection model
+        if torch.cuda.is_available():
+            with torch.amp.autocast(device_type='cuda'):
+                results = model(frame)
+        else:
+            results = model(frame)
 
-            # Prepare the frame for model input
-            img = torch.from_numpy(frame_resized).to(device)
-            img = img.permute(2, 0, 1).float() / 255.0  # Normalize and permute
-            img = img.unsqueeze(0)  # Add batch dimension
+        # Access detection results
+        detections = results.xyxy[0].cpu().numpy()  # Assuming detections format [x1, y1, x2, y2, conf, class]
 
-            # Inference
-            pred = model(img, augment=False, visualize=False)
-            pred = non_max_suppression(pred, 0.25, 0.45, classes=None, agnostic=False)
+        # Draw bounding boxes with colors based on class
+        for detection in detections:
+            x1, y1, x2, y2, conf, cls = detection
+            x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
 
-            # Process detections
-            for det in pred:
-                if len(det):
-                    # Scale detections to 640x640 output size
-                    det[:, :4] = scale_boxes((img_size, img_size), det[:, :4], (img_size, img_size)).round()
+            # Set color based on class (assuming class 0 is 'player' and class 1 is 'ball')
+            if cls == 0:  # Player
+                color = (139, 0, 0)  # Dark blue in BGR
+            elif cls == 1:  # Ball
+                color = (0, 255, 255)  # Yellow in BGR
 
-                    # Draw bounding boxes on the resized frame
-                    for *xyxy, conf, cls in reversed(det):
-                        x1, y1, x2, y2 = map(int, xyxy)
-                        label = f'{model.names[int(cls)]} {conf:.2f}'
-                        color = (0  ,0,255) if model.names[int(cls)] in ['player1', 'player1','person1','person2'] else ( 0, 255, 255)
-                        cv2.rectangle(frame_resized, (x1, y1), (x2, y2), color, 2)
-                        if label:
-                            t_size = cv2.getTextSize(label, 0, fontScale=0.5, thickness=1)[0]
-                            cv2.rectangle(frame_resized, (x1, y1 - t_size[1] - 4), (x1 + t_size[0], y1), color, -1)  # Background for text
-                            cv2.putText(frame_resized, label, (x1, y1 - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0), thickness=1)
+            # Draw rectangle and add label
+            cv2.rectangle(frame, (x1, y1), (x2, y2), color, thickness=2)
+            label = f"{int(cls)}: {conf:.2f}"  # Replace with actual label text if available
+            cv2.putText(frame, label, (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, thickness=1)
 
-            # Write processed frame to output
-            out.write(frame_resized)
+        # Convert BGR to RGB for display
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-            # Update progress
-            progress_percentage = int((i + 1) / total_frames * 100)
-            progress_bar.progress(progress_percentage)
+        # Write frame to output video file
+        out.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
 
-        # Release resources
-        cap.release()
-        out.release()
+        # Display the frame in Streamlit
+        stframe.image(frame, channels='RGB', use_container_width=True)
+
+        # Update progress bar
+        frame_count += 1
+        progress_bar.progress(frame_count / total_frames)
+
+        # Ensure consistent frame rate in display
+        time.sleep(1 / fps)
+
+    # Release video resources
+    cap.release()
+    out.release()
 
         st.success("Detection complete! 🎉🎾🎾🎉")
 
