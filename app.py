@@ -6,8 +6,6 @@ import tempfile
 import numpy as np
 import os
 
-# pathlib.PosixPath = pathlib.WindowsPath
-
 # Import YOLOv5 model and utilities
 from models.common import DetectMultiBackend
 from utils.general import non_max_suppression, scale_boxes
@@ -18,28 +16,6 @@ model_path = 'models/best.pt'
 device = select_device('')  # Use CUDA if available
 model = DetectMultiBackend(model_path, device=device, dnn=False)
 img_size = 640  # Set input size to 640x640 for model
-
-# CSS for styling
-st.markdown("""
-    <style>
-        .stButton>button {
-            background-color: #4CAF50;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 10px;
-            border: none;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 16px;
-        }
-        .stButton>button:hover {
-            background-color: #45a049;
-        }
-        .stProgress .st-bs {
-            background-color: #3a3f5c !important;
-        }
-    </style>
-""", unsafe_allow_html=True)
 
 # Title with modified color
 st.markdown("""
@@ -66,7 +42,9 @@ if uploaded_video:
         output_path = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4').name
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         fps = int(cap.get(cv2.CAP_PROP_FPS))
-        out = cv2.VideoWriter(output_path, fourcc, fps, (img_size, img_size))
+        frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        out = cv2.VideoWriter(output_path, fourcc, fps, (frame_width, frame_height))
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
         st.write("Processing video...")
@@ -74,13 +52,16 @@ if uploaded_video:
         # Progress bar
         progress_bar = st.progress(0)
 
+        # Display for frames
+        frame_placeholder = st.empty()
+
         # Process each frame
         for i in range(total_frames):
             ret, frame = cap.read()
             if not ret:
                 break
 
-            # Resize frame to 640x640 for YOLO input and output
+            # Resize frame to 640x640 for YOLO input
             frame_resized = cv2.resize(frame, (img_size, img_size))
 
             # Prepare the frame for model input
@@ -95,7 +76,7 @@ if uploaded_video:
             # Process detections
             for det in pred:
                 if len(det):
-                    # Scale detections to 640x640 output size
+                    # Scale detections to original frame size
                     det[:, :4] = scale_boxes((img_size, img_size), det[:, :4], (img_size, img_size)).round()
 
                     # Draw bounding boxes on the resized frame
@@ -116,8 +97,9 @@ if uploaded_video:
             progress_percentage = int((i + 1) / total_frames * 100)
             progress_bar.progress(progress_percentage)
 
-            # Display the processed frame
-            st.image(cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB), caption=f"Frame {i+1}/{total_frames}", use_column_width=True)
+            # Display the processed frame in RGB color space for Streamlit
+            frame_rgb = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB)
+            frame_placeholder.image(frame_rgb, caption=f"Processing Frame {i+1}/{total_frames}", use_column_width=True)
 
         # Release resources
         cap.release()
