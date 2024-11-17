@@ -73,7 +73,7 @@ if uploaded_video is not None:
 
             # Set color based on class (assuming class 0 is 'player' and class 1 is 'ball')
             if cls == 0:  # Player
-                color = (139, 0, 0)  # Dark blue in BGR
+                color = (255, 0, 0)  # Red in BGR
             elif cls == 1:  # Ball
                 color = (0, 255, 255)  # Yellow in BGR
 
