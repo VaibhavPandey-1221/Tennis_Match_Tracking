@@ -3,6 +3,7 @@ import cv2
 import torch
 import pathlib
 import tempfile
+import sys
 import numpy as np
 import os
 
@@ -44,7 +45,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-
 # Title with modified color
 st.markdown("""
     <h1 style='color: darkblue;'>
@@ -52,7 +52,7 @@ st.markdown("""
     </h1>
 """, unsafe_allow_html=True)
 
-st.write("Upload a video to detect players and balls using the YOLOv5 model.")
+st.write("Upload a Tennis Match video to detect players and balls.")
 
 # File uploader for video input
 uploaded_video = st.file_uploader("Upload a video", type=["mp4", "mov", "avi", "mkv"])
@@ -70,9 +70,7 @@ if uploaded_video:
         output_path = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4').name
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         fps = int(cap.get(cv2.CAP_PROP_FPS))
-        frame_width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        frame_height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        out = cv2.VideoWriter(output_path, fourcc, fps, (frame_width, frame_height))
+        out = cv2.VideoWriter(output_path, fourcc, fps, (img_size, img_size))
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
         st.write("Processing video...")
@@ -80,16 +78,13 @@ if uploaded_video:
         # Progress bar
         progress_bar = st.progress(0)
 
-        # Display for frames
-        frame_placeholder = st.empty()
-
         # Process each frame
         for i in range(total_frames):
             ret, frame = cap.read()
             if not ret:
                 break
 
-            # Resize frame to 640x640 for YOLO input
+            # Resize frame to 640x640 for YOLO input and output
             frame_resized = cv2.resize(frame, (img_size, img_size))
 
             # Prepare the frame for model input
@@ -104,19 +99,19 @@ if uploaded_video:
             # Process detections
             for det in pred:
                 if len(det):
-                    # Scale detections to original frame size
+                    # Scale detections to 640x640 output size
                     det[:, :4] = scale_boxes((img_size, img_size), det[:, :4], (img_size, img_size)).round()
 
                     # Draw bounding boxes on the resized frame
                     for *xyxy, conf, cls in reversed(det):
                         x1, y1, x2, y2 = map(int, xyxy)
                         label = f'{model.names[int(cls)]} {conf:.2f}'
-                        color = (0, 0, 255) if model.names[int(cls)] in ['player1', 'player2', 'person1', 'person2'] else (0, 255, 255)
+                        color = (0  ,0,255) if model.names[int(cls)] in ['player1', 'player1','person1','person2'] else ( 0, 255, 255)
                         cv2.rectangle(frame_resized, (x1, y1), (x2, y2), color, 2)
                         if label:
                             t_size = cv2.getTextSize(label, 0, fontScale=0.5, thickness=1)[0]
                             cv2.rectangle(frame_resized, (x1, y1 - t_size[1] - 4), (x1 + t_size[0], y1), color, -1)  # Background for text
-                            cv2.putText(frame_resized, label, (x1, y1 - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), thickness=1)
+                            cv2.putText(frame_resized, label, (x1, y1 - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0), thickness=1)
 
             # Write processed frame to output
             out.write(frame_resized)
@@ -125,16 +120,11 @@ if uploaded_video:
             progress_percentage = int((i + 1) / total_frames * 100)
             progress_bar.progress(progress_percentage)
 
-            # Display the processed frame in RGB color space for Streamlit
-            frame_rgb = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB)
-            frame_placeholder.image(frame_rgb, caption=f"Processing Frame {i+1}/{total_frames}", use_column_width=True)
-
         # Release resources
         cap.release()
         out.release()
 
         st.success("Detection complete! 🎉🎾🎾🎉")
-   
 
         # Display processed video
         st.video(output_path)
@@ -142,8 +132,10 @@ if uploaded_video:
         # Provide download button
         with open(output_path, "rb") as file:
             st.download_button(
-                label="Download Processed Video 🎾🎥",
+                label="Download Processed Video 🎥",
                 data=file,
                 file_name="processed_video.mp4",
                 mime="video/mp4"
             )
+      
+    
