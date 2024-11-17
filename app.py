@@ -3,8 +3,8 @@ import cv2
 import torch
 from pathlib import Path
 import tempfile
-import sys
 import numpy as np
+import os
 
 # Import YOLOv5 model and utilities
 from models.common import DetectMultiBackend
@@ -17,7 +17,7 @@ device = select_device('')  # Use CUDA if available
 model = DetectMultiBackend(model_path, device=device, dnn=False)
 img_size = 640  # Set input size to 640x640 for model
 
-# CSS for styling with wider layout and colorful theme
+# CSS for styling
 st.markdown("""
     <style>
         /* Button styling */
@@ -34,18 +34,13 @@ st.markdown("""
         .stButton>button:hover {
             background-color: #45a049;
         }
-
-        /* Progress bar styling */
-        .stProgress .st-bs {
-            background-color: #3a3f5c !important;
-        }
     </style>
 """, unsafe_allow_html=True)
 
-# Title with modified color
+# App Title
 st.markdown("""
-    <h1 style='color: lightblue;'>
-       🎾🎥 Tennis Match Player and Ball Detection Application using Yolov5 🎾🎥
+    <h1 style='color: darkblue;'>
+       🎾🎥 Tennis Match Player and Ball Detection Application using YOLOv5 🎾🎥
     </h1>
 """, unsafe_allow_html=True)
 
@@ -72,8 +67,9 @@ if uploaded_video:
 
         st.write("Processing video...")
 
-        # Progress bar
+        # Progress bar and display container
         progress_bar = st.progress(0)
+        stframe = st.empty()  # Container to display video frames
 
         # Process each frame
         for i in range(total_frames):
@@ -81,7 +77,7 @@ if uploaded_video:
             if not ret:
                 break
 
-            # Resize frame to 640x640 for YOLO input and output
+            # Resize frame for YOLO input and output
             frame_resized = cv2.resize(frame, (img_size, img_size))
 
             # Prepare the frame for model input
@@ -103,7 +99,7 @@ if uploaded_video:
                     for *xyxy, conf, cls in reversed(det):
                         x1, y1, x2, y2 = map(int, xyxy)
                         label = f'{model.names[int(cls)]} {conf:.2f}'
-                        color = (0, 255, 0) if model.names[int(cls)] in ['player1', 'player2','person1','person2'] else (255, 0, 0)
+                        color = (0, 0, 255) if model.names[int(cls)] in ['player1', 'player2', 'person1', 'person2'] else (0, 255, 255)
                         cv2.rectangle(frame_resized, (x1, y1), (x2, y2), color, 2)
                         if label:
                             t_size = cv2.getTextSize(label, 0, fontScale=0.5, thickness=1)[0]
@@ -113,9 +109,15 @@ if uploaded_video:
             # Write processed frame to output
             out.write(frame_resized)
 
+            # Convert BGR to RGB for displaying in Streamlit
+            frame_display = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB)
+
+            # Display the frame
+            stframe.image(frame_display, channels="RGB", use_container_width=True)
+
             # Update progress
             progress_percentage = int((i + 1) / total_frames * 100)
-            progress_bar.progress(progress_percentage)
+            progress_bar.progress(progress_percentage / 100)
 
         # Release resources
         cap.release()
@@ -129,7 +131,7 @@ if uploaded_video:
         # Provide download button
         with open(output_path, "rb") as file:
             st.download_button(
-                label="Download Processed Video",
+                label="Download Processed Video 🎥",
                 data=file,
                 file_name="processed_video.mp4",
                 mime="video/mp4"
