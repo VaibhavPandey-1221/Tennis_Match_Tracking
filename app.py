@@ -46,8 +46,18 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
+
+
 st.title("🎾🎾Tennis Match Player and Ball Detection Application using Yolov5")
 st.write("Upload a video to detect players and balls using the YOLOv5 model.")
+
+# Title with modified color
+st.markdown("""
+    <h1 style='color: lightblue;'>
+        🎾🎾Tennis Match Player and Ball Detection Application using Yolov5
+    </h1>
+""", unsafe_allow_html=True)
+
 
 # File uploader for video input
 uploaded_video = st.file_uploader("Upload a video", type=["mp4", "mov", "avi", "mkv"])
