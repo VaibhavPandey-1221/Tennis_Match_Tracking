@@ -48,7 +48,13 @@ st.markdown("""
 
 
 
-st.title("🎾🎾Tennis Match Player and Ball Detection Application using Yolov5")
+# Title with modified color
+st.markdown("""
+    <h1 style='color: darkblue;'>
+        🎾🎾Tennis Match Player and Ball Detection Application using Yolov5
+    </h1>
+""", unsafe_allow_html=True)
+
 st.write("Upload a video to detect players and balls using the YOLOv5 model.")
 
 # Title with modified color
