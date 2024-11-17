@@ -69,46 +69,55 @@ if uploaded_video:
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
         st.write("Processing video...")
-        
-    progress_bar = st.progress(0)
-    frame_count = 0
 
-    st.write("⏳ Processing video... Please wait.")
+        # Progress bar
+        progress_bar = st.progress(0)
 
-    # Process video frames
-    while cap.isOpened():
-        ret, frame = cap.read()
-        if not ret:
-            break
+        # Process each frame
+        for i in range(total_frames):
+            ret, frame = cap.read()
+            if not ret:
+                break
 
-        # Run detection model (mixed precision if CUDA is available)
-        if torch.cuda.is_available():
-            with torch.amp.autocast(device_type='cuda'):
-                results = model(frame)
-        else:
-            results = model(frame)
+            # Resize frame to 640x640 for YOLO input and output
+            frame_resized = cv2.resize(frame, (img_size, img_size))
 
-        frame = np.squeeze(results.render())  # Draw detection boxes on the frame
+            # Prepare the frame for model input
+            img = torch.from_numpy(frame_resized).to(device)
+            img = img.permute(2, 0, 1).float() / 255.0  # Normalize and permute
+            img = img.unsqueeze(0)  # Add batch dimension
 
-        # Write frame to output video file
-        out.write(frame)
+            # Inference
+            pred = model(img, augment=False, visualize=False)
+            pred = non_max_suppression(pred, 0.25, 0.45, classes=None, agnostic=False)
 
-        # Convert BGR to RGB for display
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            # Process detections
+            for det in pred:
+                if len(det):
+                    # Scale detections to 640x640 output size
+                    det[:, :4] = scale_boxes((img_size, img_size), det[:, :4], (img_size, img_size)).round()
 
-        # Display the frame in Streamlit
-        stframe.image(frame, channels='RGB', use_container_width=True)
+                    # Draw bounding boxes on the resized frame
+                    for *xyxy, conf, cls in reversed(det):
+                        x1, y1, x2, y2 = map(int, xyxy)
+                        label = f'{model.names[int(cls)]} {conf:.2f}'
+                        color = (0  ,0,255) if model.names[int(cls)] in ['player1', 'player1','person1','person2'] else ( 0, 255, 255)
+                        cv2.rectangle(frame_resized, (x1, y1), (x2, y2), color, 2)
+                        if label:
+                            t_size = cv2.getTextSize(label, 0, fontScale=0.5, thickness=1)[0]
+                            cv2.rectangle(frame_resized, (x1, y1 - t_size[1] - 4), (x1 + t_size[0], y1), color, -1)  # Background for text
+                            cv2.putText(frame_resized, label, (x1, y1 - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0), thickness=1)
 
-        # Update progress bar
-        frame_count += 1
-        progress_bar.progress(frame_count / total_frames)
+            # Write processed frame to output
+            out.write(frame_resized)
 
-        # Ensure consistent frame rate in display
-        time.sleep(1 / fps)
+            # Update progress
+            progress_percentage = int((i + 1) / total_frames * 100)
+            progress_bar.progress(progress_percentage)
 
-    # Release video resources
-    cap.release()
-    out.release()
+        # Release resources
+        cap.release()
+        out.release()
 
         st.success("Detection complete! 🎉🎾🎾🎉")
 
