@@ -99,7 +99,7 @@ if uploaded_video:
                     for *xyxy, conf, cls in reversed(det):
                         x1, y1, x2, y2 = map(int, xyxy)
                         label = f'{model.names[int(cls)]} {conf:.2f}'
-                        color = (0, 0, 255) if model.names[int(cls)] in ['player1', 'player2', 'person1', 'person2'] else (0, 255, 255)
+                        color = (0, 0, 255) if model.names[int(cls)] in ['player1', 'player2', 'person1', 'person2'] else (255, 0, 0)
                         cv2.rectangle(frame_resized, (x1, y1), (x2, y2), color, 2)
                         if label:
                             t_size = cv2.getTextSize(label, 0, fontScale=0.5, thickness=1)[0]
