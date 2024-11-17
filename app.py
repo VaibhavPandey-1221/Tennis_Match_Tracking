@@ -1,13 +1,10 @@
 import streamlit as st
 import cv2
 import torch
-import pathlib
+from pathlib import Path
 import tempfile
 import sys
 import numpy as np
-import os
-
-# pathlib.PosixPath = pathlib.WindowsPath
 
 # Import YOLOv5 model and utilities
 from models.common import DetectMultiBackend
@@ -20,7 +17,7 @@ device = select_device('')  # Use CUDA if available
 model = DetectMultiBackend(model_path, device=device, dnn=False)
 img_size = 640  # Set input size to 640x640 for model
 
-# CSS for styling
+# CSS for styling with wider layout and colorful theme
 st.markdown("""
     <style>
         /* Button styling */
@@ -47,12 +44,12 @@ st.markdown("""
 
 # Title with modified color
 st.markdown("""
-    <h1 style='color: darkblue;'>
-        🎾🎥 Tennis Match Player and Ball Detection Application using Yolov5 🎾🎥
+    <h1 style='color: lightblue;'>
+       🎾🎥 Tennis Match Player and Ball Detection Application using Yolov5 🎾🎥
     </h1>
 """, unsafe_allow_html=True)
 
-st.write("Upload a Tennis Match video to detect players and balls.")
+st.write("Upload a video to detect players and balls.")
 
 # File uploader for video input
 uploaded_video = st.file_uploader("Upload a video", type=["mp4", "mov", "avi", "mkv"])
@@ -106,12 +103,12 @@ if uploaded_video:
                     for *xyxy, conf, cls in reversed(det):
                         x1, y1, x2, y2 = map(int, xyxy)
                         label = f'{model.names[int(cls)]} {conf:.2f}'
-                        color = (0  ,0,255) if model.names[int(cls)] in ['player1', 'player1','person1','person2'] else ( 0, 255, 255)
+                        color = (0, 255, 0) if model.names[int(cls)] in ['player1', 'player2','person1','person2'] else (255, 0, 0)
                         cv2.rectangle(frame_resized, (x1, y1), (x2, y2), color, 2)
                         if label:
                             t_size = cv2.getTextSize(label, 0, fontScale=0.5, thickness=1)[0]
                             cv2.rectangle(frame_resized, (x1, y1 - t_size[1] - 4), (x1 + t_size[0], y1), color, -1)  # Background for text
-                            cv2.putText(frame_resized, label, (x1, y1 - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0), thickness=1)
+                            cv2.putText(frame_resized, label, (x1, y1 - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), thickness=1)
 
             # Write processed frame to output
             out.write(frame_resized)
@@ -124,7 +121,7 @@ if uploaded_video:
         cap.release()
         out.release()
 
-        st.success("Detection complete! 🎉🎾🎾🎉")
+        st.success("Detection complete! 🎉🎥")
 
         # Display processed video
         st.video(output_path)
@@ -132,10 +129,8 @@ if uploaded_video:
         # Provide download button
         with open(output_path, "rb") as file:
             st.download_button(
-                label="Download Processed Video 🎥",
+                label="Download Processed Video",
                 data=file,
                 file_name="processed_video.mp4",
                 mime="video/mp4"
             )
-      
-    
