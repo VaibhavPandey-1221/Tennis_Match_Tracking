@@ -3,7 +3,6 @@ import cv2
 import torch
 import pathlib
 import tempfile
-import sys
 import numpy as np
 import os
 
@@ -23,7 +22,6 @@ img_size = 640  # Set input size to 640x640 for model
 # CSS for styling
 st.markdown("""
     <style>
-        /* Button styling */
         .stButton>button {
             background-color: #4CAF50;
             color: white;
@@ -37,8 +35,6 @@ st.markdown("""
         .stButton>button:hover {
             background-color: #45a049;
         }
-
-        /* Progress bar styling */
         .stProgress .st-bs {
             background-color: #3a3f5c !important;
         }
@@ -106,12 +102,12 @@ if uploaded_video:
                     for *xyxy, conf, cls in reversed(det):
                         x1, y1, x2, y2 = map(int, xyxy)
                         label = f'{model.names[int(cls)]} {conf:.2f}'
-                        color = (0 ,0,255) if model.names[int(cls)] in ['player1', 'player1','person1','person2'] else ( 0, 255, 255)
+                        color = (0, 0, 255) if model.names[int(cls)] in ['player1', 'player2', 'person1', 'person2'] else (0, 255, 255)
                         cv2.rectangle(frame_resized, (x1, y1), (x2, y2), color, 2)
                         if label:
                             t_size = cv2.getTextSize(label, 0, fontScale=0.5, thickness=1)[0]
                             cv2.rectangle(frame_resized, (x1, y1 - t_size[1] - 4), (x1 + t_size[0], y1), color, -1)  # Background for text
-                            cv2.putText(frame_resized, label, (x1, y1 - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0), thickness=1)
+                            cv2.putText(frame_resized, label, (x1, y1 - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), thickness=1)
 
             # Write processed frame to output
             out.write(frame_resized)
@@ -119,6 +115,9 @@ if uploaded_video:
             # Update progress
             progress_percentage = int((i + 1) / total_frames * 100)
             progress_bar.progress(progress_percentage)
+
+            # Display the processed frame
+            st.image(cv2.cvtColor(frame_resized, cv2.COLOR_BGR2RGB), caption=f"Frame {i+1}/{total_frames}", use_column_width=True)
 
         # Release resources
         cap.release()
@@ -137,5 +136,3 @@ if uploaded_video:
                 file_name="processed_video.mp4",
                 mime="video/mp4"
             )
-      
-    
