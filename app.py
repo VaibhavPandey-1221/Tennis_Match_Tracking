@@ -6,6 +6,8 @@ import tempfile
 import numpy as np
 import os
 
+# pathlib.PosixPath = pathlib.WindowsPath
+
 # Import YOLOv5 model and utilities
 from models.common import DetectMultiBackend
 from utils.general import non_max_suppression, scale_boxes
@@ -16,6 +18,32 @@ model_path = 'models/best.pt'
 device = select_device('')  # Use CUDA if available
 model = DetectMultiBackend(model_path, device=device, dnn=False)
 img_size = 640  # Set input size to 640x640 for model
+
+# CSS for styling
+st.markdown("""
+    <style>
+        /* Button styling */
+        .stButton>button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .stButton>button:hover {
+            background-color: #45a049;
+        }
+
+        /* Progress bar styling */
+        .stProgress .st-bs {
+            background-color: #3a3f5c !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 
 # Title with modified color
 st.markdown("""
