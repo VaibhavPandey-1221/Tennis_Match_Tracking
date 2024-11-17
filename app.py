@@ -134,22 +134,7 @@ if uploaded_video:
         out.release()
 
         st.success("Detection complete! 🎉🎾🎾🎉")
-        # CSS for styling
-st.markdown("""
-    <style>
-        /* Button styling */
-        .stButton>button {
-            background-color: #4CAF50;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 10px;
-            border: none;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 16px;
-        }
-    </style>
-""", unsafe_allow_html=True)
+   
 
         # Display processed video
         st.video(output_path)
