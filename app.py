@@ -1,137 +1,164 @@
 import streamlit as st
-import cv2
 import torch
-import pathlib
+import cv2
 import tempfile
-import sys
 import numpy as np
 import os
+import time
 
-pathlib.PosixPath = pathlib.WindowsPath
+# Define the model path
+model_path = 'best.pt'  # Replace with your actual .pt file path
 
-# Import YOLOv5 model and utilities
-from models.common import DetectMultiBackend
-from utils.general import non_max_suppression, scale_boxes
-from utils.torch_utils import select_device
+# Attempt to load the custom YOLOv5 model
+try:
+    model = torch.hub.load('.', 'custom', path=model_path, source='local')
+    st.success("Model loaded successfully!")
+except Exception as e:
+    st.error(f"Error loading model: {e}")
+    raise e
 
-# Load the custom YOLOv5 model
-model_path = 'models/best.pt'
-device = select_device('')  # Use CUDA if available
-model = DetectMultiBackend(model_path, device=device, dnn=False)
-img_size = 640  # Set input size to 640x640 for model
-
-# CSS for styling
-st.markdown("""
+# Apply CSS for enhanced styling
+st.markdown(
+    """
     <style>
-        /* Button styling */
-        .stButton>button {
-            background-color: #4CAF50;
-            color: white;
-            padding: 10px 20px;
+        body {
+            background-color: black; /* Main background */
+            color: #00ff99; /* Text color */
+            font-family: Arial, sans-serif;
+        }
+        .stApp {
+            background-color: #101010; /* Container background */
             border-radius: 10px;
+            padding: 10px;
+        }
+        .stSidebar {
+            background-color: #202020; /* Sidebar background */
+            border-right: 1px solid #444;
+        }
+        .stButton>button {
+            color: white;
+            background-color: #008080; /* Button background */
             border: none;
-            cursor: pointer;
-            font-weight: bold;
-            font-size: 16px;
+            border-radius: 5px;
+            padding: 8px 12px;
         }
         .stButton>button:hover {
-            background-color: #45a049;
+            background-color: #00cc99; /* Button hover color */
         }
-
-        /* Progress bar styling */
-        .stProgress .st-bs {
-            background-color: #3a3f5c !important;
+        .stProgress > div > div > div {
+            background-color: #00ff99; /* Progress bar color */
+        }
+        h1, h2, h3, h4, h5, h6 {
+            color: #00ff99; /* Heading color */
+        }
+        p {
+            color: #cccccc; /* Paragraph text color */
+        }
+        .uploadedVideo {
+            border: 2px dashed #00cc99;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
         }
     </style>
-""", unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True,
+)
 
+# Streamlit Sidebar for user instructions
+st.sidebar.title("🚀 Tennis Tracking for Players and Ball")
+st.sidebar.info(
+    """
+    ### Welcome to the Tennis Tracking App! 🎾
+    - **Step 1**: Upload a tennis video file (e.g., MP4, AVI, MOV).
+    - **Step 2**: Watch as the app tracks players and the ball.
+    - **Step 3**: Download the processed video.
+    """
+)
 
-st.title("🎾🎾Tennis Match Player and Ball Detection Application using Yolov5")
-st.write("Upload a video to detect players and balls using the YOLOv5 model.")
+# Main App Interface
+st.title('🎾 **Tennis Tracking Application**')
+st.write("Detect and track players in tennis videos in real-time. Please upload a video file below to get started!")
 
 # File uploader for video input
-uploaded_video = st.file_uploader("Upload a video", type=["mp4", "mov", "avi", "mkv"])
+uploaded_video = st.file_uploader("Upload Your Tennis Video 🎥", type=["mp4", "avi", "mov"])
 
-if uploaded_video:
-    # Create a temporary file to store the uploaded video
-    temp_video_path = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4')
-    temp_video_path.write(uploaded_video.read())
-    temp_video_path.close()
+if uploaded_video is not None:
+    st.markdown('<div class="uploadedVideo">Video uploaded successfully! Processing will begin shortly.</div>', unsafe_allow_html=True)
 
-    # Process button
-    if st.button("Process"):
-        # Load video and initialize parameters
-        cap = cv2.VideoCapture(temp_video_path.name)
-        output_path = tempfile.NamedTemporaryFile(delete=False, suffix='.mp4').name
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        fps = int(cap.get(cv2.CAP_PROP_FPS))
-        out = cv2.VideoWriter(output_path, fourcc, fps, (img_size, img_size))
-        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    # Save the uploaded video to a temporary file
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as temp_video:
+        temp_video.write(uploaded_video.read())
+        temp_video_path = temp_video.name
 
-        st.write("Processing video...")
+    # Open video capture
+    cap = cv2.VideoCapture(temp_video_path)
+    stframe = st.empty()
 
-        # Progress bar
-        progress_bar = st.progress(0)
+    # Set up the output video
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as output_temp:
+        output_video_path = output_temp.name
 
-        # Process each frame
-        for i in range(total_frames):
-            ret, frame = cap.read()
-            if not ret:
-                break
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    fps = int(cap.get(cv2.CAP_PROP_FPS))
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
 
-            # Resize frame to 640x640 for YOLO input and output
-            frame_resized = cv2.resize(frame, (img_size, img_size))
+    # Get total frames for progress bar
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    progress_bar = st.progress(0)
+    frame_count = 0
 
-            # Prepare the frame for model input
-            img = torch.from_numpy(frame_resized).to(device)
-            img = img.permute(2, 0, 1).float() / 255.0  # Normalize and permute
-            img = img.unsqueeze(0)  # Add batch dimension
+    st.write("⏳ **Processing video... Please wait.**")
 
-            # Inference
-            pred = model(img, augment=False, visualize=False)
-            pred = non_max_suppression(pred, 0.25, 0.45, classes=None, agnostic=False)
+    # Process video frames
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret:
+            break
 
-            # Process detections
-            for det in pred:
-                if len(det):
-                    # Scale detections to 640x640 output size
-                    det[:, :4] = scale_boxes((img_size, img_size), det[:, :4], (img_size, img_size)).round()
+        # Run detection model
+        if torch.cuda.is_available():
+            with torch.amp.autocast(device_type='cuda'):
+                results = model(frame)
+        else:
+            results = model(frame)
 
-                    # Draw bounding boxes on the resized frame
-                    for *xyxy, conf, cls in reversed(det):
-                        x1, y1, x2, y2 = map(int, xyxy)
-                        label = f'{model.names[int(cls)]} {conf:.2f}'
-                        color = (0  ,0,255) if model.names[int(cls)] in ['player1', 'player1','person1','person2'] else ( 0, 255, 255)
-                        cv2.rectangle(frame_resized, (x1, y1), (x2, y2), color, 2)
-                        if label:
-                            t_size = cv2.getTextSize(label, 0, fontScale=0.5, thickness=1)[0]
-                            cv2.rectangle(frame_resized, (x1, y1 - t_size[1] - 4), (x1 + t_size[0], y1), color, -1)  # Background for text
-                            cv2.putText(frame_resized, label, (x1, y1 - 2), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0), thickness=1)
+        frame = np.squeeze(results.render())  # Draw detection boxes on the frame
 
-            # Write processed frame to output
-            out.write(frame_resized)
+        # Write frame to output video file
+        out.write(frame)
 
-            # Update progress
-            progress_percentage = int((i + 1) / total_frames * 100)
-            progress_bar.progress(progress_percentage)
+        # Convert BGR to RGB for display
+        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        # Release resources
-        cap.release()
-        out.release()
+        # Display the frame in Streamlit
+        stframe.image(frame, channels='RGB', use_container_width=True)
 
-        st.success("Detection complete! 🎉🎾🎾🎉")
+        # Update progress bar
+        frame_count += 1
+        progress_bar.progress(frame_count / total_frames)
 
-        # Display processed video
-        st.video(output_path)
+        # Ensure consistent frame rate in display
+        time.sleep(1 / fps)
 
-        # Provide download button
-        with open(output_path, "rb") as file:
-            st.download_button(
-                label="Download Processed Video",
-                data=file,
-                file_name="processed_video.mp4",
-                mime="video/mp4"
-            )
-      
-    
+    # Release video resources
+    cap.release()
+    out.release()
 
+    st.success("🎉 **Video processing complete!**")
+
+    # Provide download button for the processed video
+    st.write("📥 **Download Your Processed Video:**")
+    with open(output_video_path, 'rb') as f:
+        st.download_button(
+            label="⬇ **Download Processed Video**",
+            data=f,
+            file_name="processed_video.mp4",
+            mime="video/mp4"
+        )
+
+    # Clean up temporary files
+    os.remove(temp_video_path)
+    os.remove(output_video_path)
